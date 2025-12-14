@@ -6,8 +6,8 @@ This module provides task operations with validation and error handling.
 
 from datetime import datetime
 from typing import List, Optional
-from todo_app.models import Task
-from todo_app.storage import TaskStorage
+from .models import Task
+from .storage import TaskStorage
 
 
 class TaskOperations:

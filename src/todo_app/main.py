@@ -4,9 +4,9 @@ Main entry point for the todo application.
 This module initializes the application components and runs the main loop.
 """
 
-from todo_app.storage import TaskStorage
-from todo_app.operations import TaskOperations
-from todo_app.ui import ConsoleUI
+from .storage import TaskStorage
+from .operations import TaskOperations
+from .ui import ConsoleUI
 
 
 def main() -> None:

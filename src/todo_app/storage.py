@@ -5,7 +5,7 @@ This module provides in-memory storage for tasks with CRUD operations.
 """
 
 from typing import Dict, List, Optional
-from todo_app.models import Task
+from .models import Task
 
 
 class TaskStorage:

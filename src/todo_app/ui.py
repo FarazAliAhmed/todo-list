@@ -6,8 +6,8 @@ and workflow coordination for all task operations.
 """
 
 from typing import Optional
-from todo_app.models import Task
-from todo_app.operations import TaskOperations
+from .models import Task
+from .operations import TaskOperations
 
 
 class ConsoleUI:
