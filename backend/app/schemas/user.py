@@ -3,12 +3,12 @@ User-related Pydantic schemas for request/response validation.
 """
 from typing import Optional
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 
 
 class UserBase(BaseModel):
     """Base schema for user data."""
-    email: EmailStr
+    email: str
 
 
 class UserCreate(UserBase):
