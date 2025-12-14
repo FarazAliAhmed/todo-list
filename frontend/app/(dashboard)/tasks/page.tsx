@@ -3,7 +3,7 @@
 import ProtectedRoute from "@/components/ProtectedRoute";
 import TaskForm from "@/components/TaskForm";
 import TaskList from "@/components/TaskList";
-import { api } from "@/lib/api";
+import { api, ApiClientError } from "@/lib/api";
 import { useSession } from "@/lib/auth-client";
 import { useToast } from "@/lib/toast-context";
 import { CreateTaskDto, Task, UpdateTaskDto } from "@/lib/types";
