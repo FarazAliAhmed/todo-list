@@ -1,5 +1,6 @@
 // Better Auth configuration for production deployment
 import { betterAuth } from "better-auth";
+import { Kysely, PostgresDialect } from "kysely";
 import { Pool } from "pg";
 
 let authInstance: ReturnType<typeof betterAuth> | null = null;
@@ -14,14 +15,21 @@ function getAuth() {
     throw new Error("DATABASE_URL environment variable is not set");
   }
 
-  authInstance = betterAuth({
-    // Database configuration - use PostgreSQL adapter
-    database: new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: {
-        rejectUnauthorized: false,
-      },
+  // Create Kysely instance with PostgreSQL dialect
+  const db = new Kysely({
+    dialect: new PostgresDialect({
+      pool: new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: {
+          rejectUnauthorized: false,
+        },
+      }),
     }),
+  });
+
+  authInstance = betterAuth({
+    // Database configuration - use Kysely adapter
+    database: db,
 
     // Email and password authentication
     emailAndPassword: {
