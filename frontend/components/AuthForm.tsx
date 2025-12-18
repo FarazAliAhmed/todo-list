@@ -67,8 +67,11 @@ export default function AuthForm({ mode }: AuthFormProps) {
         }
 
         showSuccess("Account created successfully! Welcome!");
-        // Redirect to tasks page after successful signup
-        router.push("/tasks");
+        // Refresh to get new session, then redirect
+        router.refresh();
+        setTimeout(() => {
+          router.push("/tasks");
+        }, 100);
       } else {
         // Login existing user
         const result = await authClient.signIn.email({
@@ -86,8 +89,11 @@ export default function AuthForm({ mode }: AuthFormProps) {
 
         showSuccess("Welcome back!");
         setLoading(false);
-        // Redirect to tasks page after successful login
-        router.push("/tasks");
+        // Refresh to get new session, then redirect
+        router.refresh();
+        setTimeout(() => {
+          router.push("/tasks");
+        }, 100);
       }
     } catch (err: any) {
       console.error("Auth error:", err);
