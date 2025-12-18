@@ -1,4 +1,4 @@
-// Better Auth configuration
+// Better Auth configuration for production deployment
 import { betterAuth } from "better-auth";
 import { Pool } from "pg";
 

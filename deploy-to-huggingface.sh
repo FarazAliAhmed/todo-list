@@ -17,9 +17,16 @@ echo ""
 # Configuration
 HF_USERNAME="faraz7530"  # Your Hugging Face username
 HF_SPACE_NAME="todo-backend"  # Your space name
-HF_TOKEN="YOUR_HF_TOKEN_HERE"  # Replace with your HF token
+HF_TOKEN="${HF_TOKEN:-}"  # Set this as environment variable
 TMP_DIR="/tmp/${HF_SPACE_NAME}"
 PROJECT_BACKEND_DIR="$HOME/Project/Panaversity-todo/backend"
+
+# Check if HF_TOKEN is set
+if [ -z "$HF_TOKEN" ]; then
+  echo -e "${RED}Error: HF_TOKEN environment variable is not set${NC}"
+  echo "Usage: HF_TOKEN=your_token ./deploy-to-huggingface.sh"
+  exit 1
+fi
 
 echo -e "${YELLOW}Configuration:${NC}"
 echo "  Username: ${HF_USERNAME}"
