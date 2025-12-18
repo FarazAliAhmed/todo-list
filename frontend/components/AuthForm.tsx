@@ -85,11 +85,13 @@ export default function AuthForm({ mode }: AuthFormProps) {
         }
 
         showSuccess("Welcome back!");
+        setLoading(false);
         // Redirect to tasks page after successful login
         router.push("/tasks");
       }
-    } catch (err) {
-      showError("An unexpected error occurred. Please try again.");
+    } catch (err: any) {
+      console.error("Auth error:", err);
+      showError(err?.message || "An unexpected error occurred. Please try again.");
       setLoading(false);
     }
   };
