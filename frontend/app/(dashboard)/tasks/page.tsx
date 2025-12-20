@@ -4,7 +4,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import TaskForm from "@/components/TaskForm";
 import TaskList from "@/components/TaskList";
 import { api, ApiClientError } from "@/lib/api";
-import { useSession } from "@/lib/auth-client";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/lib/toast-context";
 import { CreateTaskDto, Task, UpdateTaskDto } from "@/lib/types";
 import { useRouter } from "next/navigation";
@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 
 function TasksPageContent() {
   const router = useRouter();
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const { showSuccess, showError, showWarning } = useToast();
 
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -20,189 +20,96 @@ function TasksPageContent() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  // Load tasks when session is available
   useEffect(() => {
-    if (session?.user?.id) {
+    if (user?.id) {
       loadTasks();
     }
-  }, [session?.user?.id]);
+  }, [user?.id]);
 
-  /**
-   * Load all tasks from the API
-   */
   const loadTasks = async () => {
-    if (!session?.user?.id) return;
+    if (!user?.id) return;
 
     setIsLoading(true);
     setLoadError(null);
 
     try {
-      const fetchedTasks = await api.getTasks(session.user.id);
+      const fetchedTasks = await api.getTasks(user.id);
       setTasks(fetchedTasks);
-      setLoadError(null);
     } catch (err: any) {
-      console.error("Error loading tasks:", err);
       if (err instanceof ApiClientError) {
         if (err.status === 401) {
-          showError("Your session has expired. Please log in again.");
+          showError("Session expired. Please log in again.");
           router.push("/login");
-        } else if (err.status === 0) {
-          setLoadError(err.detail);
         } else {
-          setLoadError(err.detail || "Failed to load tasks. Please try again.");
+          setLoadError(err.detail || "Failed to load tasks");
         }
       } else {
-        setLoadError("An unexpected error occurred. Please try again.");
+        setLoadError("An error occurred");
       }
     } finally {
       setIsLoading(false);
     }
   };
 
-  /**
-   * Create a new task
-   */
   const handleCreateTask = async (data: CreateTaskDto) => {
-    if (!session?.user?.id) return;
+    if (!user?.id) return;
 
     try {
-      const newTask = await api.createTask(session.user.id, data);
+      const newTask = await api.createTask(user.id, data);
       setTasks((prev) => [newTask, ...prev]);
-      showSuccess("Task created successfully!");
+      showSuccess("Task created!");
     } catch (err: any) {
-      console.error("Error creating task:", err);
       if (err instanceof ApiClientError) {
-        if (err.status === 401) {
-          showError("Your session has expired. Please log in again.");
-          router.push("/login");
-        } else if (err.status === 400) {
-          showError(`Validation error: ${err.detail}`);
-        } else if (err.status === 0) {
-          showError(err.detail);
-        } else {
-          showError(err.detail || "Failed to create task. Please try again.");
-        }
-      } else {
-        showError("An unexpected error occurred. Please try again.");
+        showError(err.detail || "Failed to create task");
       }
       throw err;
     }
   };
 
-  /**
-   * Update an existing task
-   */
   const handleUpdateTask = async (data: CreateTaskDto) => {
-    if (!session?.user?.id || !editingTask) return;
+    if (!user?.id || !editingTask) return;
 
     try {
-      const updateData: UpdateTaskDto = {
+      const updatedTask = await api.updateTask(user.id, editingTask.id, {
         title: data.title,
         description: data.description,
-      };
-
-      const updatedTask = await api.updateTask(
-        session.user.id,
-        editingTask.id,
-        updateData
-      );
-
-      setTasks((prev) =>
-        prev.map((task) => (task.id === updatedTask.id ? updatedTask : task))
-      );
+      });
+      setTasks((prev) => prev.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
       setEditingTask(null);
-      showSuccess("Task updated successfully!");
+      showSuccess("Task updated!");
     } catch (err: any) {
-      console.error("Error updating task:", err);
       if (err instanceof ApiClientError) {
-        if (err.status === 401) {
-          showError("Your session has expired. Please log in again.");
-          router.push("/login");
-        } else if (err.status === 403) {
-          showError("You don't have permission to update this task.");
-        } else if (err.status === 404) {
-          showError("Task not found. It may have been deleted.");
-          loadTasks();
-        } else if (err.status === 0) {
-          showError(err.detail);
-        } else {
-          showError(err.detail || "Failed to update task. Please try again.");
-        }
-      } else {
-        showError("An unexpected error occurred. Please try again.");
+        showError(err.detail || "Failed to update task");
       }
       throw err;
     }
   };
 
-  /**
-   * Delete a task
-   */
   const handleDeleteTask = async (taskId: number) => {
-    if (!session?.user?.id) return;
+    if (!user?.id) return;
 
     try {
-      await api.deleteTask(session.user.id, taskId);
-      setTasks((prev) => prev.filter((task) => task.id !== taskId));
-      showSuccess("Task deleted successfully!");
-
-      if (editingTask?.id === taskId) {
-        setEditingTask(null);
-      }
+      await api.deleteTask(user.id, taskId);
+      setTasks((prev) => prev.filter((t) => t.id !== taskId));
+      if (editingTask?.id === taskId) setEditingTask(null);
+      showSuccess("Task deleted!");
     } catch (err: any) {
-      console.error("Error deleting task:", err);
       if (err instanceof ApiClientError) {
-        if (err.status === 401) {
-          showError("Your session has expired. Please log in again.");
-          router.push("/login");
-        } else if (err.status === 403) {
-          showError("You don't have permission to delete this task.");
-        } else if (err.status === 404) {
-          showWarning("Task not found. It may have already been deleted.");
-          setTasks((prev) => prev.filter((task) => task.id !== taskId));
-        } else if (err.status === 0) {
-          showError(err.detail);
-        } else {
-          showError(err.detail || "Failed to delete task. Please try again.");
-        }
-      } else {
-        showError("An unexpected error occurred. Please try again.");
+        showError(err.detail || "Failed to delete task");
       }
       throw err;
     }
   };
 
-  /**
-   * Toggle task completion status
-   */
   const handleToggleComplete = async (taskId: number) => {
-    if (!session?.user?.id) return;
+    if (!user?.id) return;
 
     try {
-      const updatedTask = await api.toggleComplete(session.user.id, taskId);
-      setTasks((prev) =>
-        prev.map((task) => (task.id === updatedTask.id ? updatedTask : task))
-      );
+      const updatedTask = await api.toggleComplete(user.id, taskId);
+      setTasks((prev) => prev.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
     } catch (err: any) {
-      console.error("Error toggling task completion:", err);
       if (err instanceof ApiClientError) {
-        if (err.status === 401) {
-          showError("Your session has expired. Please log in again.");
-          router.push("/login");
-        } else if (err.status === 403) {
-          showError("You don't have permission to modify this task.");
-        } else if (err.status === 404) {
-          showError("Task not found. It may have been deleted.");
-          loadTasks();
-        } else if (err.status === 0) {
-          showError(err.detail);
-        } else {
-          showError(
-            err.detail || "Failed to update task status. Please try again."
-          );
-        }
-      } else {
-        showError("An unexpected error occurred. Please try again.");
+        showError(err.detail || "Failed to update task");
       }
       throw err;
     }

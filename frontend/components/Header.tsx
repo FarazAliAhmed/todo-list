@@ -1,25 +1,15 @@
 "use client";
 
-import { signOut, useSession } from "@/lib/auth-client";
+import { useAuth } from "@/hooks/useAuth";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 export default function Header() {
-  const { data: session } = useSession();
-  const router = useRouter();
+  const { user, logout } = useAuth();
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      router.push("/login");
-    } catch (error) {
-      console.error("Error logging out:", error);
-    }
-  };
 
   // Don't show header on auth pages
   if (pathname === "/login" || pathname === "/signup" || pathname === "/") {
@@ -64,16 +54,16 @@ export default function Header() {
             </Link>
 
             {/* User menu - Desktop */}
-            {session?.user && (
+            {user && (
               <div className="relative">
                 <button
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                   className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
                 >
                   <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold">
-                    {session.user.email?.[0]?.toUpperCase() || "U"}
+                    {user.email?.[0]?.toUpperCase() || "U"}
                   </div>
-                  <span className="hidden lg:inline">{session.user.email}</span>
+                  <span className="hidden lg:inline">{user.email}</span>
                   <svg
                     className={`w-4 h-4 transition-transform ${
                       isUserMenuOpen ? "rotate-180" : ""
@@ -101,14 +91,14 @@ export default function Header() {
                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-20 border border-gray-200">
                       <div className="px-4 py-2 border-b border-gray-200">
                         <p className="text-sm font-medium text-gray-900 truncate">
-                          {session.user.email}
+                          {user.email}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {session.user.name || "User"}
+                          {user.name || "User"}
                         </p>
                       </div>
                       <button
-                        onClick={handleLogout}
+                        onClick={logout}
                         className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center space-x-2"
                       >
                         <svg
@@ -180,26 +170,26 @@ export default function Header() {
                 My Tasks
               </Link>
 
-              {session?.user && (
+              {user && (
                 <>
                   <div className="px-3 py-2 border-t border-gray-200 mt-2 pt-4">
                     <div className="flex items-center space-x-3 mb-3">
                       <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold">
-                        {session.user.email?.[0]?.toUpperCase() || "U"}
+                        {user.email?.[0]?.toUpperCase() || "U"}
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-900 truncate">
-                          {session.user.email}
+                          {user.email}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {session.user.name || "User"}
+                          {user.name || "User"}
                         </p>
                       </div>
                     </div>
                     <button
                       onClick={() => {
                         setIsMobileMenuOpen(false);
-                        handleLogout();
+                        logout();
                       }}
                       className="w-full text-left px-3 py-2 rounded-md text-base font-medium text-red-600 hover:bg-red-50 transition-colors flex items-center space-x-2"
                     >

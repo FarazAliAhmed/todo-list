@@ -1,6 +1,5 @@
 "use client";
 
-import { authClient } from "@/lib/auth-client";
 import { useToast } from "@/lib/toast-context";
 import { FormEvent, useState } from "react";
 
@@ -20,7 +19,6 @@ export default function AuthForm({ mode }: AuthFormProps) {
   }>({});
   const [loading, setLoading] = useState(false);
 
-  // Client-side validation
   const validateForm = (): boolean => {
     const errors: { email?: string; password?: string; name?: string } = {};
 
@@ -40,48 +38,33 @@ export default function AuthForm({ mode }: AuthFormProps) {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setFieldErrors({});
-
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setLoading(true);
 
     try {
-      if (mode === "signup") {
-        const result = await authClient.signUp.email({
-          email,
-          password,
-          name,
-        });
+      const endpoint = mode === "signup" ? "/api/signup" : "/api/login";
+      const body = mode === "signup" ? { email, password, name } : { email, password };
 
-        if (result.error) {
-          showError(result.error.message || "Signup failed");
-          setLoading(false);
-          return;
-        }
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        credentials: "include",
+      });
 
-        showSuccess("Account created!");
-        window.location.href = "/tasks";
-      } else {
-        const result = await authClient.signIn.email({
-          email,
-          password,
-        });
+      const data = await res.json();
 
-        if (result.error) {
-          showError(result.error.message || "Invalid credentials");
-          setLoading(false);
-          return;
-        }
-
-        showSuccess("Welcome back!");
-        window.location.href = "/tasks";
+      if (!res.ok) {
+        showError(data.error || "Authentication failed");
+        setLoading(false);
+        return;
       }
+
+      showSuccess(mode === "signup" ? "Account created!" : "Welcome back!");
+      window.location.href = "/tasks";
     } catch (err: any) {
-      console.error("Auth error:", err);
-      showError(err?.message || "An unexpected error occurred");
+      showError(err?.message || "An error occurred");
       setLoading(false);
     }
   };
