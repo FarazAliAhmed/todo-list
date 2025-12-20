@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession } from "@/lib/auth-client";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 
 interface ProtectedRouteProps {
@@ -13,15 +13,20 @@ interface ProtectedRouteProps {
  * Wraps pages that require authentication
  */
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { data: session, isPending } = useSession();
+  const { data: session, isPending, error } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
-    // Redirect to login if not authenticated
+    // Log for debugging
+    console.log("ProtectedRoute - isPending:", isPending, "session:", session, "error:", error);
+    
+    // Redirect to login if not authenticated and not loading
     if (!isPending && !session) {
-      router.push("/login");
+      const redirectUrl = `/login?redirect=${encodeURIComponent(pathname)}`;
+      router.push(redirectUrl);
     }
-  }, [session, isPending, router]);
+  }, [session, isPending, router, pathname, error]);
 
   // Show loading spinner while checking authentication
   if (isPending) {
@@ -37,7 +42,13 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   // Don't render if not authenticated (will redirect)
   if (!session) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <p className="text-sm text-gray-600">Redirecting to login...</p>
+        </div>
+      </div>
+    );
   }
 
   // Render children if authenticated
