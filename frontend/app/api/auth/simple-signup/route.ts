@@ -7,6 +7,11 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
+// Simple password hashing - must match login
+function hashPassword(password: string): string {
+  return crypto.createHash("sha256").update(password + (process.env.BETTER_AUTH_SECRET || "secret")).digest("hex");
+}
+
 export async function POST(request: Request) {
   try {
     const { email, password, name } = await request.json();
@@ -34,7 +39,7 @@ export async function POST(request: Request) {
     );
 
     // Hash password and create account
-    const hashedPassword = crypto.createHash("sha256").update(password + process.env.BETTER_AUTH_SECRET).digest("hex");
+    const hashedPassword = hashPassword(password);
     const accountId = crypto.randomUUID();
     
     await pool.query(
@@ -54,20 +59,21 @@ export async function POST(request: Request) {
       [sessionId, userId, token, expiresAt]
     );
 
-    const response = NextResponse.json({
-      success: true,
+    const sessionData = {
       user: { id: userId, email, name },
       token,
+    };
+
+    const response = NextResponse.json({
+      success: true,
+      ...sessionData,
       sessionId,
     });
 
     // Set cookie
-    response.cookies.set("todo_session", JSON.stringify({
-      user: { id: userId, email, name },
-      token,
-    }), {
+    response.cookies.set("todo_session", JSON.stringify(sessionData), {
       httpOnly: false,
-      secure: true,
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       maxAge: 60 * 60 * 24 * 7,
       path: "/",
