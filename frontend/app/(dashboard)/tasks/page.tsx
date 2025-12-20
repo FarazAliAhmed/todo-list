@@ -4,60 +4,40 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import TaskForm from "@/components/TaskForm";
 import TaskList from "@/components/TaskList";
 import { api, ApiClientError } from "@/lib/api";
+import { useSession } from "@/lib/auth-client";
 import { useToast } from "@/lib/toast-context";
 import { CreateTaskDto, Task, UpdateTaskDto } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-interface User {
-  id: string;
-  email: string;
-  name: string;
-}
-
 function TasksPageContent() {
   const router = useRouter();
+  const { data: session } = useSession();
   const { showSuccess, showError, showWarning } = useToast();
 
-  const [user, setUser] = useState<User | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  // Get user from localStorage
+  // Load tasks when session is available
   useEffect(() => {
-    const stored = localStorage.getItem("todo_session");
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (parsed?.user) {
-          setUser(parsed.user);
-        }
-      } catch (e) {
-        console.error("Failed to parse session:", e);
-      }
-    }
-  }, []);
-
-  // Load tasks when user is available
-  useEffect(() => {
-    if (user?.id) {
+    if (session?.user?.id) {
       loadTasks();
     }
-  }, [user?.id]);
+  }, [session?.user?.id]);
 
   /**
    * Load all tasks from the API
    */
   const loadTasks = async () => {
-    if (!user?.id) return;
+    if (!session?.user?.id) return;
 
     setIsLoading(true);
     setLoadError(null);
 
     try {
-      const fetchedTasks = await api.getTasks(user.id);
+      const fetchedTasks = await api.getTasks(session.user.id);
       setTasks(fetchedTasks);
       setLoadError(null);
     } catch (err: any) {
@@ -65,7 +45,6 @@ function TasksPageContent() {
       if (err instanceof ApiClientError) {
         if (err.status === 401) {
           showError("Your session has expired. Please log in again.");
-          localStorage.removeItem("todo_session");
           router.push("/login");
         } else if (err.status === 0) {
           setLoadError(err.detail);
@@ -84,10 +63,10 @@ function TasksPageContent() {
    * Create a new task
    */
   const handleCreateTask = async (data: CreateTaskDto) => {
-    if (!user?.id) return;
+    if (!session?.user?.id) return;
 
     try {
-      const newTask = await api.createTask(user.id, data);
+      const newTask = await api.createTask(session.user.id, data);
       setTasks((prev) => [newTask, ...prev]);
       showSuccess("Task created successfully!");
     } catch (err: any) {
@@ -95,7 +74,6 @@ function TasksPageContent() {
       if (err instanceof ApiClientError) {
         if (err.status === 401) {
           showError("Your session has expired. Please log in again.");
-          localStorage.removeItem("todo_session");
           router.push("/login");
         } else if (err.status === 400) {
           showError(`Validation error: ${err.detail}`);
@@ -115,7 +93,7 @@ function TasksPageContent() {
    * Update an existing task
    */
   const handleUpdateTask = async (data: CreateTaskDto) => {
-    if (!user?.id || !editingTask) return;
+    if (!session?.user?.id || !editingTask) return;
 
     try {
       const updateData: UpdateTaskDto = {
@@ -124,7 +102,7 @@ function TasksPageContent() {
       };
 
       const updatedTask = await api.updateTask(
-        user.id,
+        session.user.id,
         editingTask.id,
         updateData
       );
@@ -139,7 +117,6 @@ function TasksPageContent() {
       if (err instanceof ApiClientError) {
         if (err.status === 401) {
           showError("Your session has expired. Please log in again.");
-          localStorage.removeItem("todo_session");
           router.push("/login");
         } else if (err.status === 403) {
           showError("You don't have permission to update this task.");
@@ -162,10 +139,10 @@ function TasksPageContent() {
    * Delete a task
    */
   const handleDeleteTask = async (taskId: number) => {
-    if (!user?.id) return;
+    if (!session?.user?.id) return;
 
     try {
-      await api.deleteTask(user.id, taskId);
+      await api.deleteTask(session.user.id, taskId);
       setTasks((prev) => prev.filter((task) => task.id !== taskId));
       showSuccess("Task deleted successfully!");
 
@@ -177,7 +154,6 @@ function TasksPageContent() {
       if (err instanceof ApiClientError) {
         if (err.status === 401) {
           showError("Your session has expired. Please log in again.");
-          localStorage.removeItem("todo_session");
           router.push("/login");
         } else if (err.status === 403) {
           showError("You don't have permission to delete this task.");
@@ -200,10 +176,10 @@ function TasksPageContent() {
    * Toggle task completion status
    */
   const handleToggleComplete = async (taskId: number) => {
-    if (!user?.id) return;
+    if (!session?.user?.id) return;
 
     try {
-      const updatedTask = await api.toggleComplete(user.id, taskId);
+      const updatedTask = await api.toggleComplete(session.user.id, taskId);
       setTasks((prev) =>
         prev.map((task) => (task.id === updatedTask.id ? updatedTask : task))
       );
@@ -212,7 +188,6 @@ function TasksPageContent() {
       if (err instanceof ApiClientError) {
         if (err.status === 401) {
           showError("Your session has expired. Please log in again.");
-          localStorage.removeItem("todo_session");
           router.push("/login");
         } else if (err.status === 403) {
           showError("You don't have permission to modify this task.");

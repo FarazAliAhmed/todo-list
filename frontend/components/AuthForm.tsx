@@ -1,5 +1,6 @@
 "use client";
 
+import { authClient } from "@/lib/auth-client";
 import { useToast } from "@/lib/toast-context";
 import { FormEvent, useState } from "react";
 
@@ -48,33 +49,36 @@ export default function AuthForm({ mode }: AuthFormProps) {
     setLoading(true);
 
     try {
-      const endpoint = mode === "signup" ? "/api/auth/simple-signup" : "/api/auth/simple-login";
-      const body = mode === "signup" ? { email, password, name } : { email, password };
+      if (mode === "signup") {
+        const result = await authClient.signUp.email({
+          email,
+          password,
+          name,
+        });
 
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+        if (result.error) {
+          showError(result.error.message || "Signup failed");
+          setLoading(false);
+          return;
+        }
 
-      const data = await response.json();
+        showSuccess("Account created!");
+        window.location.href = "/tasks";
+      } else {
+        const result = await authClient.signIn.email({
+          email,
+          password,
+        });
 
-      if (!response.ok) {
-        showError(data.error || "Authentication failed");
-        setLoading(false);
-        return;
+        if (result.error) {
+          showError(result.error.message || "Invalid credentials");
+          setLoading(false);
+          return;
+        }
+
+        showSuccess("Welcome back!");
+        window.location.href = "/tasks";
       }
-
-      // Store session in localStorage
-      localStorage.setItem("todo_session", JSON.stringify({
-        user: data.user,
-        token: data.token,
-      }));
-
-      showSuccess(mode === "signup" ? "Account created!" : "Welcome back!");
-      
-      // Redirect with full page reload
-      window.location.href = "/tasks";
     } catch (err: any) {
       console.error("Auth error:", err);
       showError(err?.message || "An unexpected error occurred");
