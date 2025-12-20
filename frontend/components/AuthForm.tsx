@@ -67,11 +67,8 @@ export default function AuthForm({ mode }: AuthFormProps) {
         }
 
         showSuccess("Account created successfully! Welcome!");
-        // Refresh to get new session, then redirect
-        router.refresh();
-        setTimeout(() => {
-          router.push("/tasks");
-        }, 100);
+        // Force full page reload to ensure session is loaded
+        window.location.href = "/tasks";
       } else {
         // Login existing user
         const result = await authClient.signIn.email({
@@ -89,11 +86,8 @@ export default function AuthForm({ mode }: AuthFormProps) {
 
         showSuccess("Welcome back!");
         setLoading(false);
-        // Refresh to get new session, then redirect
-        router.refresh();
-        setTimeout(() => {
-          router.push("/tasks");
-        }, 100);
+        // Force full page reload to ensure session is loaded
+        window.location.href = "/tasks";
       }
     } catch (err: any) {
       console.error("Auth error:", err);
