@@ -1,35 +1,56 @@
 "use client";
 
-import { useSession } from "@/lib/auth-client";
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
-/**
- * ProtectedRoute component that redirects unauthenticated users to login
- * Wraps pages that require authentication
- */
+interface User {
+  id: string;
+  email: string;
+  name: string;
+}
+
+interface Session {
+  user: User;
+  token: string;
+}
+
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { data: session, isPending, error } = useSession();
   const router = useRouter();
   const pathname = usePathname();
+  const [session, setSession] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Log for debugging
-    console.log("ProtectedRoute - isPending:", isPending, "session:", session, "error:", error);
-    
-    // Redirect to login if not authenticated and not loading
-    if (!isPending && !session) {
+    // Check localStorage for session
+    const checkSession = () => {
+      const stored = localStorage.getItem("todo_session");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed?.user?.id && parsed?.token) {
+            setSession(parsed);
+            setIsLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.error("Failed to parse session:", e);
+        }
+      }
+      
+      // No valid session, redirect to login
+      setIsLoading(false);
       const redirectUrl = `/login?redirect=${encodeURIComponent(pathname)}`;
       router.push(redirectUrl);
-    }
-  }, [session, isPending, router, pathname, error]);
+    };
 
-  // Show loading spinner while checking authentication
-  if (isPending) {
+    checkSession();
+  }, [pathname, router]);
+
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -40,17 +61,13 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  // Don't render if not authenticated (will redirect)
   if (!session) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <p className="text-sm text-gray-600">Redirecting to login...</p>
-        </div>
+        <p className="text-sm text-gray-600">Redirecting to login...</p>
       </div>
     );
   }
 
-  // Render children if authenticated
   return <>{children}</>;
 }

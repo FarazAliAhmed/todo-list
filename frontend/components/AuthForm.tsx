@@ -1,8 +1,6 @@
 "use client";
 
-import { authClient } from "@/lib/auth-client";
 import { useToast } from "@/lib/toast-context";
-import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
 interface AuthFormProps {
@@ -10,7 +8,6 @@ interface AuthFormProps {
 }
 
 export default function AuthForm({ mode }: AuthFormProps) {
-  const router = useRouter();
   const { showError, showSuccess } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -44,7 +41,6 @@ export default function AuthForm({ mode }: AuthFormProps) {
     e.preventDefault();
     setFieldErrors({});
 
-    // Validate form
     if (!validateForm()) {
       return;
     }
@@ -52,46 +48,36 @@ export default function AuthForm({ mode }: AuthFormProps) {
     setLoading(true);
 
     try {
-      if (mode === "signup") {
-        // Sign up new user
-        const result = await authClient.signUp.email({
-          email,
-          password,
-          name,
-        });
+      const endpoint = mode === "signup" ? "/api/auth/simple-signup" : "/api/auth/simple-login";
+      const body = mode === "signup" ? { email, password, name } : { email, password };
 
-        if (result.error) {
-          showError(result.error.message || "Signup failed. Please try again.");
-          setLoading(false);
-          return;
-        }
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
 
-        showSuccess("Account created successfully! Welcome!");
-        // Force full page reload to ensure session is loaded
-        window.location.href = "/tasks";
-      } else {
-        // Login existing user
-        const result = await authClient.signIn.email({
-          email,
-          password,
-        });
+      const data = await response.json();
 
-        if (result.error) {
-          showError(
-            result.error.message || "Invalid credentials. Please try again."
-          );
-          setLoading(false);
-          return;
-        }
-
-        showSuccess("Welcome back!");
+      if (!response.ok) {
+        showError(data.error || "Authentication failed");
         setLoading(false);
-        // Force full page reload to ensure session is loaded
-        window.location.href = "/tasks";
+        return;
       }
+
+      // Store session in localStorage
+      localStorage.setItem("todo_session", JSON.stringify({
+        user: data.user,
+        token: data.token,
+      }));
+
+      showSuccess(mode === "signup" ? "Account created!" : "Welcome back!");
+      
+      // Redirect with full page reload
+      window.location.href = "/tasks";
     } catch (err: any) {
       console.error("Auth error:", err);
-      showError(err?.message || "An unexpected error occurred. Please try again.");
+      showError(err?.message || "An unexpected error occurred");
       setLoading(false);
     }
   };
