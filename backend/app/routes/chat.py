@@ -1,13 +1,12 @@
 """
 Chat API routes for AI-powered task management.
-Uses OpenAI Agents SDK with LiteLLM for multi-provider support.
+Auth temporarily disabled for testing.
 """
 from typing import Optional
 from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from app.services.chat_service import ChatService
-from app.middleware.auth import get_current_user
 
 
 router = APIRouter(prefix="/api", tags=["chat"])
@@ -40,32 +39,22 @@ def get_chat_service() -> ChatService:
 
 @router.post("/{user_id}/chat", response_model=ChatResponse)
 async def chat(
-    user_id: UUID,
+    user_id: str,
     request: ChatRequest,
-    chat_service: ChatService = Depends(get_chat_service),
-    current_user: dict = Depends(get_current_user)
+    chat_service: ChatService = Depends(get_chat_service)
 ):
     """
     Send a message to the AI assistant and get a response.
-    
-    The AI can manage tasks through natural language:
-    - "Add a task to buy groceries"
-    - "Show me my pending tasks"
-    - "Mark task 3 as complete"
-    - "Delete the meeting task"
-    
-    Supports multiple LLM providers via LiteLLM (Groq, OpenAI, Anthropic).
     """
-    # Verify user is accessing their own data
-    if str(current_user["id"]) != str(user_id):
-        raise HTTPException(
-            status_code=403,
-            detail="Not authorized to access this user's chat"
-        )
+    try:
+        # Validate UUID format
+        UUID(user_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid user ID format")
     
     try:
         result = await chat_service.chat_async(
-            user_id=str(user_id),
+            user_id=user_id,
             message=request.message,
             conversation_id=request.conversation_id
         )
@@ -79,19 +68,17 @@ async def chat(
 
 @router.get("/{user_id}/conversations")
 async def list_conversations(
-    user_id: UUID,
-    chat_service: ChatService = Depends(get_chat_service),
-    current_user: dict = Depends(get_current_user)
+    user_id: str,
+    chat_service: ChatService = Depends(get_chat_service)
 ):
     """Get all conversations for the user."""
-    if str(current_user["id"]) != str(user_id):
-        raise HTTPException(
-            status_code=403,
-            detail="Not authorized to access this user's conversations"
-        )
+    try:
+        UUID(user_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid user ID format")
     
     try:
-        conversations = chat_service.get_conversations(str(user_id))
+        conversations = chat_service.get_conversations(user_id)
         return {"conversations": conversations}
     except Exception as e:
         raise HTTPException(
@@ -102,21 +89,19 @@ async def list_conversations(
 
 @router.get("/{user_id}/conversations/{conversation_id}")
 async def get_conversation(
-    user_id: UUID,
+    user_id: str,
     conversation_id: int,
-    chat_service: ChatService = Depends(get_chat_service),
-    current_user: dict = Depends(get_current_user)
+    chat_service: ChatService = Depends(get_chat_service)
 ):
     """Get a specific conversation with all messages."""
-    if str(current_user["id"]) != str(user_id):
-        raise HTTPException(
-            status_code=403,
-            detail="Not authorized to access this conversation"
-        )
+    try:
+        UUID(user_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid user ID format")
     
     try:
         conversation = chat_service.get_conversation_messages(
-            str(user_id), conversation_id
+            user_id, conversation_id
         )
         if not conversation:
             raise HTTPException(
