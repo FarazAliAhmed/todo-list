@@ -37,12 +37,8 @@ function TasksPageContent() {
       setTasks(fetchedTasks);
     } catch (err: any) {
       if (err instanceof ApiClientError) {
-        if (err.status === 401) {
-          showError("Session expired. Please log in again.");
-          router.push("/login");
-        } else {
-          setLoadError(err.detail || "Failed to load tasks");
-        }
+        // Show error but don't redirect - backend auth is disabled
+        setLoadError(err.detail || "Failed to load tasks");
       } else {
         setLoadError("An error occurred");
       }

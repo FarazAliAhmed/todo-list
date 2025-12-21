@@ -125,6 +125,8 @@ async function handleResponse<T>(response: Response): Promise<T> {
       errorDetail = response.statusText || errorDetail;
     }
 
+    // Don't treat 401 as session expired - backend auth is disabled
+    // Just show the error message
     throw new ApiClientError(response.status, errorDetail);
   }
 
