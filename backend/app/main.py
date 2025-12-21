@@ -67,6 +67,7 @@ async def root():
     """Root endpoint with API information."""
     return {
         "message": "Todo API",
-        "version": "2.0.0",
-        "docs": "/docs"
+        "version": "2.0.1",
+        "docs": "/docs",
+        "auth": "disabled"
     }
