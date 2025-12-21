@@ -205,6 +205,83 @@ export const api = {
     });
     return handleResponse<Task>(response);
   },
+
+  // ============ Chat API Methods ============
+
+  /**
+   * Send a chat message to the AI assistant
+   * @param userId - The user ID
+   * @param message - The user's message
+   * @param conversationId - Optional existing conversation ID
+   * @returns Promise with conversation_id, response, and tool_calls
+   */
+  async sendChatMessage(
+    userId: string,
+    message: string,
+    conversationId?: number
+  ): Promise<{
+    conversation_id: number;
+    response: string;
+    tool_calls: Array<{
+      tool_name: string;
+      arguments: Record<string, unknown>;
+      result: Record<string, unknown>;
+    }>;
+  }> {
+    const url = `${API_BASE_URL}/api/${userId}/chat`;
+    const response = await fetchWithAuth(url, {
+      method: "POST",
+      body: JSON.stringify({
+        message,
+        conversation_id: conversationId,
+      }),
+    });
+    return handleResponse(response);
+  },
+
+  /**
+   * Get all conversations for a user
+   * @param userId - The user ID
+   * @returns Promise with list of conversations
+   */
+  async getConversations(userId: string): Promise<{
+    conversations: Array<{
+      id: number;
+      title: string;
+      created_at: string;
+      message_count: number;
+    }>;
+  }> {
+    const url = `${API_BASE_URL}/api/${userId}/conversations`;
+    const response = await fetchWithAuth(url, { method: "GET" });
+    return handleResponse(response);
+  },
+
+  /**
+   * Get a specific conversation with messages
+   * @param userId - The user ID
+   * @param conversationId - The conversation ID
+   * @returns Promise with conversation details and messages
+   */
+  async getConversation(
+    userId: string,
+    conversationId: number
+  ): Promise<{
+    id: number;
+    title: string;
+    created_at: string;
+    updated_at: string;
+    messages: Array<{
+      id: number;
+      role: string;
+      content: string;
+      created_at: string;
+    }>;
+  }> {
+    const url = `${API_BASE_URL}/api/${userId}/conversations/${conversationId}`;
+    const response = await fetchWithAuth(url, { method: "GET" });
+    return handleResponse(response);
+  },
 };
 
 export default api;

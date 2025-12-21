@@ -7,7 +7,7 @@ from fastapi.exceptions import RequestValidationError
 from sqlalchemy.exc import SQLAlchemyError
 from app.config import settings
 from app.database import create_db_and_tables
-from app.routes import tasks
+from app.routes import tasks, chat
 from app.exceptions import (
     validation_exception_handler,
     sqlalchemy_exception_handler,
@@ -40,6 +40,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(tasks.router)
+app.include_router(chat.router)
 
 
 @app.on_event("startup")
