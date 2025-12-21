@@ -11,8 +11,9 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "postgresql://user:password@localhost:5432/todo_db"
 
-    # JWT Configuration
+    # JWT Configuration - accepts JWT_SECRET or BETTER_AUTH_SECRET
     jwt_secret: str = "your-secret-key-change-in-production"
+    better_auth_secret: str = ""  # Alternative secret name
     jwt_algorithm: str = "HS256"
     jwt_expiration_days: int = 7
 
@@ -35,6 +36,13 @@ class Settings(BaseSettings):
     def cors_origins_list(self) -> list[str]:
         """Parse CORS origins from comma-separated string."""
         return [origin.strip() for origin in self.cors_origins.split(",")]
+
+    @property
+    def effective_jwt_secret(self) -> str:
+        """Get the effective JWT secret - prefer better_auth_secret if set."""
+        if self.better_auth_secret:
+            return self.better_auth_secret
+        return self.jwt_secret
 
 
 settings = Settings()

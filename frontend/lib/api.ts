@@ -21,14 +21,21 @@ export class ApiClientError extends Error {
 }
 
 /**
- * Get JWT token from Better Auth session
+ * Get JWT token from session cookie
  */
 async function getAuthToken(): Promise<string | null> {
   try {
-    // Get token from Better Auth session storage
-    // Better Auth stores the session in localStorage or cookies
-    const session = localStorage.getItem("better-auth.session_token");
-    return session;
+    // Get session from our app_session cookie
+    const cookies = document.cookie.split(";");
+    const sessionCookie = cookies.find(c => c.trim().startsWith("app_session="));
+    
+    if (sessionCookie) {
+      const value = sessionCookie.split("=").slice(1).join("=");
+      const parsed = JSON.parse(decodeURIComponent(value));
+      // Return the token from the session
+      return parsed?.token || null;
+    }
+    return null;
   } catch (error) {
     console.error("Error getting auth token:", error);
     return null;

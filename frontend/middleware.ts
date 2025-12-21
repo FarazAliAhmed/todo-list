@@ -12,7 +12,7 @@ export function middleware(request: NextRequest) {
   const isPublicRoute = publicRoutes.includes(pathname);
 
   // Define protected routes
-  const protectedRoutes = ["/tasks"];
+  const protectedRoutes = ["/tasks", "/chat"];
   const isProtectedRoute = protectedRoutes.some((route) =>
     pathname.startsWith(route)
   );

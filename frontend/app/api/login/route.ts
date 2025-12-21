@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Pool } from "pg";
 import crypto from "crypto";
+import { SignJWT } from "jose";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -9,6 +10,12 @@ const pool = new Pool({
 
 function hash(str: string): string {
   return crypto.createHash("sha256").update(str).digest("hex");
+}
+
+// Get JWT secret as Uint8Array for jose
+function getJwtSecret(): Uint8Array {
+  const secret = process.env.JWT_SECRET || process.env.BETTER_AUTH_SECRET || "default-secret";
+  return new TextEncoder().encode(secret);
 }
 
 export async function POST(request: Request) {
@@ -44,14 +51,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
-    // Create session
-    const session = { user: { id: user.id, email: user.email, name: user.name } };
+    // Generate JWT token for backend API
+    const token = await new SignJWT({ sub: user.id, email: user.email })
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuedAt()
+      .setExpirationTime("7d")
+      .sign(getJwtSecret());
+
+    // Create session with token
+    const session = { 
+      user: { id: user.id, email: user.email, name: user.name },
+      token: token
+    };
     
     const response = NextResponse.json({ success: true, ...session });
     
     response.cookies.set("app_session", JSON.stringify(session), {
       httpOnly: false,
-      secure: false,
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       maxAge: 60 * 60 * 24 * 7,
       path: "/",
@@ -59,6 +76,7 @@ export async function POST(request: Request) {
 
     return response;
   } catch (error: any) {
+    console.error("Login error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

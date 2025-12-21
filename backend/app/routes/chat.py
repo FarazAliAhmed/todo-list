@@ -7,7 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from app.services.chat_service import ChatService
-from app.auth import get_current_user
+from app.middleware.auth import get_current_user
 
 
 router = APIRouter(prefix="/api", tags=["chat"])
