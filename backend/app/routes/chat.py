@@ -1,11 +1,11 @@
 """
 Chat API routes for AI-powered task management.
+Uses OpenAI Agents SDK.
 """
 from typing import Optional
 from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from app.config import settings
 from app.services.chat_service import ChatService
 from app.auth import get_current_user
 
@@ -26,15 +26,16 @@ class ChatResponse(BaseModel):
     tool_calls: list = []
 
 
+# Singleton chat service instance
+_chat_service: Optional[ChatService] = None
+
+
 def get_chat_service() -> ChatService:
     """Dependency to get chat service instance."""
-    api_key = settings.openai_api_key
-    if not api_key:
-        raise HTTPException(
-            status_code=500,
-            detail="OpenAI API key not configured"
-        )
-    return ChatService(api_key=api_key)
+    global _chat_service
+    if _chat_service is None:
+        _chat_service = ChatService()
+    return _chat_service
 
 
 @router.post("/{user_id}/chat", response_model=ChatResponse)
@@ -61,7 +62,7 @@ async def chat(
         )
     
     try:
-        result = chat_service.chat(
+        result = await chat_service.chat_async(
             user_id=str(user_id),
             message=request.message,
             conversation_id=request.conversation_id

@@ -1,14 +1,17 @@
 """
-Chat service with OpenAI integration for AI-powered task management.
+Chat service using OpenAI Agents SDK for AI-powered task management.
+Uses the latest openai-agents package with function tools and SQLiteSession.
 """
 import json
+import asyncio
+import os
 from typing import Optional, List
 from uuid import UUID
-from openai import OpenAI
+from agents import Agent, Runner, function_tool, RunContextWrapper, SQLiteSession
 from sqlmodel import Session, select
 from app.database import engine
 from app.models.conversation import Conversation, Message
-from app.services.mcp_tools import MCPTools, TOOL_DEFINITIONS
+from app.models.task import Task
 from datetime import datetime, UTC
 
 
@@ -16,15 +19,213 @@ def utc_now():
     return datetime.now(UTC)
 
 
-class ChatService:
-    """Service for handling AI chat interactions."""
+# ============ MCP Function Tools ============
+# These tools use RunContextWrapper to access user_id
+
+@function_tool
+def add_task(ctx: RunContextWrapper[dict], title: str, description: str | None = None) -> str:
+    """
+    Create a new task for the user.
     
-    def __init__(self, api_key: str):
-        self.client = OpenAI(api_key=api_key)
-        self.mcp_tools = MCPTools()
-        self.model = "gpt-4o-mini"  # Cost-effective model
-        
-        self.system_prompt = """You are a helpful AI assistant for managing todo tasks. 
+    Args:
+        title: The title of the task (required)
+        description: Optional description of the task
+    """
+    user_id = ctx.context.get("user_id")
+    try:
+        with Session(engine) as session:
+            task = Task(
+                user_id=UUID(user_id),
+                title=title,
+                description=description,
+                completed=False,
+                created_at=utc_now(),
+                updated_at=utc_now()
+            )
+            session.add(task)
+            session.commit()
+            session.refresh(task)
+            
+            return json.dumps({
+                "task_id": task.id,
+                "status": "created",
+                "title": task.title,
+                "message": f"Task '{task.title}' created successfully!"
+            })
+    except Exception as e:
+        return json.dumps({"error": str(e), "status": "failed"})
+
+
+@function_tool
+def list_tasks(ctx: RunContextWrapper[dict], status: str = "all") -> str:
+    """
+    List tasks for the user.
+    
+    Args:
+        status: Filter by status - "all", "pending", or "completed"
+    """
+    user_id = ctx.context.get("user_id")
+    try:
+        with Session(engine) as session:
+            query = select(Task).where(Task.user_id == UUID(user_id))
+            
+            if status == "pending":
+                query = query.where(Task.completed == False)
+            elif status == "completed":
+                query = query.where(Task.completed == True)
+            
+            query = query.order_by(Task.created_at.desc())
+            tasks = session.exec(query).all()
+            
+            task_list = [
+                {
+                    "id": t.id,
+                    "title": t.title,
+                    "description": t.description,
+                    "completed": t.completed,
+                    "created_at": t.created_at.isoformat() if t.created_at else None
+                }
+                for t in tasks
+            ]
+            
+            return json.dumps({
+                "tasks": task_list,
+                "count": len(tasks),
+                "status": "success"
+            })
+    except Exception as e:
+        return json.dumps({"error": str(e), "status": "failed", "tasks": []})
+
+
+@function_tool
+def complete_task(ctx: RunContextWrapper[dict], task_id: int) -> str:
+    """
+    Mark a task as complete.
+    
+    Args:
+        task_id: The ID of the task to mark as complete
+    """
+    user_id = ctx.context.get("user_id")
+    try:
+        with Session(engine) as session:
+            task = session.exec(
+                select(Task).where(
+                    Task.id == task_id,
+                    Task.user_id == UUID(user_id)
+                )
+            ).first()
+            
+            if not task:
+                return json.dumps({"error": "Task not found", "status": "failed"})
+            
+            task.completed = True
+            task.updated_at = utc_now()
+            session.add(task)
+            session.commit()
+            
+            return json.dumps({
+                "task_id": task.id,
+                "status": "completed",
+                "title": task.title,
+                "message": f"Task '{task.title}' marked as complete!"
+            })
+    except Exception as e:
+        return json.dumps({"error": str(e), "status": "failed"})
+
+
+@function_tool
+def delete_task(ctx: RunContextWrapper[dict], task_id: int) -> str:
+    """
+    Delete a task.
+    
+    Args:
+        task_id: The ID of the task to delete
+    """
+    user_id = ctx.context.get("user_id")
+    try:
+        with Session(engine) as session:
+            task = session.exec(
+                select(Task).where(
+                    Task.id == task_id,
+                    Task.user_id == UUID(user_id)
+                )
+            ).first()
+            
+            if not task:
+                return json.dumps({"error": "Task not found", "status": "failed"})
+            
+            title = task.title
+            session.delete(task)
+            session.commit()
+            
+            return json.dumps({
+                "task_id": task_id,
+                "status": "deleted",
+                "title": title,
+                "message": f"Task '{title}' deleted successfully!"
+            })
+    except Exception as e:
+        return json.dumps({"error": str(e), "status": "failed"})
+
+
+@function_tool
+def update_task(
+    ctx: RunContextWrapper[dict], 
+    task_id: int, 
+    title: str | None = None, 
+    description: str | None = None
+) -> str:
+    """
+    Update a task's title or description.
+    
+    Args:
+        task_id: The ID of the task to update
+        title: New title for the task (optional)
+        description: New description for the task (optional)
+    """
+    user_id = ctx.context.get("user_id")
+    try:
+        with Session(engine) as session:
+            task = session.exec(
+                select(Task).where(
+                    Task.id == task_id,
+                    Task.user_id == UUID(user_id)
+                )
+            ).first()
+            
+            if not task:
+                return json.dumps({"error": "Task not found", "status": "failed"})
+            
+            if title is not None:
+                task.title = title
+            if description is not None:
+                task.description = description
+            task.updated_at = utc_now()
+            
+            session.add(task)
+            session.commit()
+            session.refresh(task)
+            
+            return json.dumps({
+                "task_id": task.id,
+                "status": "updated",
+                "title": task.title,
+                "message": f"Task '{task.title}' updated successfully!"
+            })
+    except Exception as e:
+        return json.dumps({"error": str(e), "status": "failed"})
+
+
+# ============ Chat Service ============
+
+class ChatService:
+    """Service for handling AI chat interactions using OpenAI Agents SDK."""
+    
+    def __init__(self):
+        # Create the task management agent with function tools
+        self.agent = Agent(
+            name="TaskAssistant",
+            instructions="""You are a helpful AI assistant for managing todo tasks. 
 You help users add, view, update, complete, and delete their tasks through natural conversation.
 
 When users want to:
@@ -35,50 +236,29 @@ When users want to:
 - Change/update/rename/modify → use update_task
 
 Always be friendly and confirm actions. If a task operation fails, explain the error helpfully.
-When listing tasks, format them nicely for the user."""
+When listing tasks, format them nicely for the user with task IDs so they can reference them.
+Keep responses concise but helpful.""",
+            tools=[add_task, list_tasks, complete_task, delete_task, update_task],
+        )
+        
+        # Session storage directory
+        self.session_db = os.environ.get("SESSION_DB_PATH", "conversations.db")
 
-    def _execute_tool(self, user_id: str, tool_name: str, arguments: dict) -> dict:
-        """Execute an MCP tool and return the result."""
-        if tool_name == "add_task":
-            return self.mcp_tools.add_task(
-                user_id=user_id,
-                title=arguments.get("title"),
-                description=arguments.get("description")
-            )
-        elif tool_name == "list_tasks":
-            return self.mcp_tools.list_tasks(
-                user_id=user_id,
-                status=arguments.get("status", "all")
-            )
-        elif tool_name == "complete_task":
-            return self.mcp_tools.complete_task(
-                user_id=user_id,
-                task_id=arguments.get("task_id")
-            )
-        elif tool_name == "delete_task":
-            return self.mcp_tools.delete_task(
-                user_id=user_id,
-                task_id=arguments.get("task_id")
-            )
-        elif tool_name == "update_task":
-            return self.mcp_tools.update_task(
-                user_id=user_id,
-                task_id=arguments.get("task_id"),
-                title=arguments.get("title"),
-                description=arguments.get("description")
-            )
-        else:
-            return {"error": f"Unknown tool: {tool_name}", "status": "failed"}
+    def _get_session(self, user_id: str, conversation_id: Optional[int] = None) -> SQLiteSession:
+        """Get or create a SQLiteSession for the user/conversation."""
+        # Create unique session ID combining user and conversation
+        session_id = f"{user_id}_{conversation_id}" if conversation_id else f"{user_id}_new"
+        return SQLiteSession(session_id, self.session_db)
 
     def _get_or_create_conversation(
         self, 
-        session: Session, 
+        db_session: Session, 
         user_id: UUID, 
         conversation_id: Optional[int]
     ) -> Conversation:
-        """Get existing conversation or create a new one."""
+        """Get existing conversation or create a new one in our database."""
         if conversation_id:
-            conversation = session.exec(
+            conversation = db_session.exec(
                 select(Conversation).where(
                     Conversation.id == conversation_id,
                     Conversation.user_id == user_id
@@ -94,43 +274,21 @@ When listing tasks, format them nicely for the user."""
             created_at=utc_now(),
             updated_at=utc_now()
         )
-        session.add(conversation)
-        session.commit()
-        session.refresh(conversation)
+        db_session.add(conversation)
+        db_session.commit()
+        db_session.refresh(conversation)
         return conversation
-
-    def _get_conversation_history(
-        self, 
-        session: Session, 
-        conversation_id: int,
-        limit: int = 20
-    ) -> List[dict]:
-        """Get recent messages from conversation history."""
-        messages = session.exec(
-            select(Message)
-            .where(Message.conversation_id == conversation_id)
-            .order_by(Message.created_at.desc())
-            .limit(limit)
-        ).all()
-        
-        # Reverse to get chronological order
-        messages = list(reversed(messages))
-        
-        return [
-            {"role": msg.role, "content": msg.content}
-            for msg in messages
-        ]
 
     def _save_message(
         self,
-        session: Session,
+        db_session: Session,
         conversation_id: int,
         user_id: UUID,
         role: str,
         content: str,
         tool_calls: Optional[str] = None
     ) -> Message:
-        """Save a message to the database."""
+        """Save a message to our database for history display."""
         message = Message(
             conversation_id=conversation_id,
             user_id=user_id,
@@ -139,19 +297,20 @@ When listing tasks, format them nicely for the user."""
             tool_calls=tool_calls,
             created_at=utc_now()
         )
-        session.add(message)
-        session.commit()
-        session.refresh(message)
+        db_session.add(message)
+        db_session.commit()
+        db_session.refresh(message)
         return message
 
-    def chat(
+    async def chat_async(
         self,
         user_id: str,
         message: str,
         conversation_id: Optional[int] = None
     ) -> dict:
         """
-        Process a chat message and return AI response.
+        Process a chat message asynchronously and return AI response.
+        Uses SQLiteSession for automatic conversation history management.
         
         Args:
             user_id: The user's ID
@@ -164,113 +323,82 @@ When listing tasks, format them nicely for the user."""
         user_uuid = UUID(user_id)
         tool_calls_made = []
         
-        with Session(engine) as session:
-            # Get or create conversation
+        with Session(engine) as db_session:
+            # Get or create conversation in our database
             conversation = self._get_or_create_conversation(
-                session, user_uuid, conversation_id
+                db_session, user_uuid, conversation_id
             )
             
-            # Get conversation history
-            history = self._get_conversation_history(session, conversation.id)
-            
-            # Save user message
+            # Save user message to our database
             self._save_message(
-                session, conversation.id, user_uuid, "user", message
+                db_session, conversation.id, user_uuid, "user", message
             )
             
-            # Build messages for OpenAI
-            messages = [{"role": "system", "content": self.system_prompt}]
-            messages.extend(history)
-            messages.append({"role": "user", "content": message})
+            # Get SQLiteSession for agent memory
+            agent_session = self._get_session(user_id, conversation.id)
             
-            # Call OpenAI with tools
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                tools=TOOL_DEFINITIONS,
-                tool_choice="auto"
+            # Run the agent with user context and session
+            context = {"user_id": user_id}
+            result = await Runner.run(
+                self.agent, 
+                input=message,
+                context=context,
+                session=agent_session
             )
             
-            assistant_message = response.choices[0].message
+            # Extract tool calls from the result
+            if hasattr(result, 'new_items'):
+                for item in result.new_items:
+                    if hasattr(item, 'type') and item.type == 'function_call_output':
+                        # This is a tool result
+                        pass
+                    elif hasattr(item, 'raw_item'):
+                        raw = item.raw_item
+                        if hasattr(raw, 'type') and raw.type == 'function_call':
+                            tool_calls_made.append({
+                                "tool_name": raw.name if hasattr(raw, 'name') else "unknown",
+                                "arguments": json.loads(raw.arguments) if hasattr(raw, 'arguments') and raw.arguments else {},
+                                "result": {}
+                            })
             
-            # Handle tool calls if any
-            if assistant_message.tool_calls:
-                # Process each tool call
-                tool_results = []
-                for tool_call in assistant_message.tool_calls:
-                    tool_name = tool_call.function.name
-                    arguments = json.loads(tool_call.function.arguments)
-                    
-                    # Execute the tool
-                    result = self._execute_tool(user_id, tool_name, arguments)
-                    
-                    tool_calls_made.append({
-                        "tool_name": tool_name,
-                        "arguments": arguments,
-                        "result": result
-                    })
-                    
-                    tool_results.append({
-                        "tool_call_id": tool_call.id,
-                        "role": "tool",
-                        "content": json.dumps(result)
-                    })
-                
-                # Add assistant message with tool calls
-                messages.append({
-                    "role": "assistant",
-                    "content": assistant_message.content or "",
-                    "tool_calls": [
-                        {
-                            "id": tc.id,
-                            "type": "function",
-                            "function": {
-                                "name": tc.function.name,
-                                "arguments": tc.function.arguments
-                            }
-                        }
-                        for tc in assistant_message.tool_calls
-                    ]
-                })
-                
-                # Add tool results
-                messages.extend(tool_results)
-                
-                # Get final response from OpenAI
-                final_response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages
-                )
-                
-                final_content = final_response.choices[0].message.content
-            else:
-                final_content = assistant_message.content
+            final_output = result.final_output or "I'm sorry, I couldn't process that request."
             
-            # Save assistant response
+            # Save assistant response to our database
             self._save_message(
-                session,
+                db_session,
                 conversation.id,
                 user_uuid,
                 "assistant",
-                final_content,
+                final_output,
                 json.dumps(tool_calls_made) if tool_calls_made else None
             )
             
             # Update conversation timestamp
             conversation.updated_at = utc_now()
-            session.add(conversation)
-            session.commit()
+            db_session.add(conversation)
+            db_session.commit()
             
             return {
                 "conversation_id": conversation.id,
-                "response": final_content,
+                "response": final_output,
                 "tool_calls": tool_calls_made
             }
 
+    def chat(
+        self,
+        user_id: str,
+        message: str,
+        conversation_id: Optional[int] = None
+    ) -> dict:
+        """
+        Synchronous wrapper for chat_async.
+        """
+        return asyncio.run(self.chat_async(user_id, message, conversation_id))
+
     def get_conversations(self, user_id: str) -> List[dict]:
-        """Get all conversations for a user."""
-        with Session(engine) as session:
-            conversations = session.exec(
+        """Get all conversations for a user from our database."""
+        with Session(engine) as db_session:
+            conversations = db_session.exec(
                 select(Conversation)
                 .where(Conversation.user_id == UUID(user_id))
                 .order_by(Conversation.updated_at.desc())
@@ -279,7 +407,7 @@ When listing tasks, format them nicely for the user."""
             result = []
             for conv in conversations:
                 # Count messages
-                msg_count = len(session.exec(
+                msg_count = len(db_session.exec(
                     select(Message).where(Message.conversation_id == conv.id)
                 ).all())
                 
@@ -297,9 +425,9 @@ When listing tasks, format them nicely for the user."""
         user_id: str, 
         conversation_id: int
     ) -> Optional[dict]:
-        """Get a conversation with all its messages."""
-        with Session(engine) as session:
-            conversation = session.exec(
+        """Get a conversation with all its messages from our database."""
+        with Session(engine) as db_session:
+            conversation = db_session.exec(
                 select(Conversation).where(
                     Conversation.id == conversation_id,
                     Conversation.user_id == UUID(user_id)
@@ -309,7 +437,7 @@ When listing tasks, format them nicely for the user."""
             if not conversation:
                 return None
             
-            messages = session.exec(
+            messages = db_session.exec(
                 select(Message)
                 .where(Message.conversation_id == conversation_id)
                 .order_by(Message.created_at)
