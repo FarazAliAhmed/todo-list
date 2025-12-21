@@ -1,6 +1,6 @@
 """
 Chat API routes for AI-powered task management.
-Uses OpenAI Agents SDK.
+Uses OpenAI Agents SDK with LiteLLM for multi-provider support.
 """
 from typing import Optional
 from uuid import UUID
@@ -53,6 +53,8 @@ async def chat(
     - "Show me my pending tasks"
     - "Mark task 3 as complete"
     - "Delete the meeting task"
+    
+    Supports multiple LLM providers via LiteLLM (Groq, OpenAI, Anthropic).
     """
     # Verify user is accessing their own data
     if str(current_user["id"]) != str(user_id):

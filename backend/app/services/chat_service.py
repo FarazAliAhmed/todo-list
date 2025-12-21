@@ -1,18 +1,22 @@
 """
-Chat service using OpenAI Agents SDK for AI-powered task management.
-Uses the latest openai-agents package with function tools and SQLiteSession.
+Chat service using OpenAI Agents SDK with LiteLLM for multi-provider support.
+Supports Groq, OpenAI, Anthropic, and other LLM providers via LiteLLM.
 """
 import json
 import asyncio
 import os
 from typing import Optional, List
 from uuid import UUID
-from agents import Agent, Runner, function_tool, RunContextWrapper, SQLiteSession
+from agents import Agent, Runner, function_tool, RunContextWrapper, set_tracing_disabled
+from agents.extensions.models.litellm_model import LitellmModel
 from sqlmodel import Session, select
 from app.database import engine
 from app.models.conversation import Conversation, Message
 from app.models.task import Task
 from datetime import datetime, UTC
+
+# Disable tracing for non-OpenAI models
+set_tracing_disabled(disabled=True)
 
 
 def utc_now():
@@ -219,9 +223,25 @@ def update_task(
 # ============ Chat Service ============
 
 class ChatService:
-    """Service for handling AI chat interactions using OpenAI Agents SDK."""
+    """
+    Service for handling AI chat interactions using OpenAI Agents SDK.
+    Supports multiple LLM providers via LiteLLM (Groq, OpenAI, Anthropic, etc.)
+    """
     
     def __init__(self):
+        # Get configuration from environment
+        self.api_key = os.environ.get("LLM_API_KEY", os.environ.get("GROQ_API_KEY", ""))
+        self.model_name = os.environ.get("LLM_MODEL", "groq/llama-3.3-70b-versatile")
+        
+        # Create LiteLLM model for multi-provider support
+        # Groq models: groq/llama-3.3-70b-versatile, groq/mixtral-8x7b-32768
+        # OpenAI models: gpt-4o-mini, gpt-4o
+        # Anthropic models: anthropic/claude-3-5-sonnet-20240620
+        self.model = LitellmModel(
+            model=self.model_name,
+            api_key=self.api_key
+        )
+        
         # Create the task management agent with function tools
         self.agent = Agent(
             name="TaskAssistant",
@@ -238,17 +258,9 @@ When users want to:
 Always be friendly and confirm actions. If a task operation fails, explain the error helpfully.
 When listing tasks, format them nicely for the user with task IDs so they can reference them.
 Keep responses concise but helpful.""",
+            model=self.model,
             tools=[add_task, list_tasks, complete_task, delete_task, update_task],
         )
-        
-        # Session storage directory
-        self.session_db = os.environ.get("SESSION_DB_PATH", "conversations.db")
-
-    def _get_session(self, user_id: str, conversation_id: Optional[int] = None) -> SQLiteSession:
-        """Get or create a SQLiteSession for the user/conversation."""
-        # Create unique session ID combining user and conversation
-        session_id = f"{user_id}_{conversation_id}" if conversation_id else f"{user_id}_new"
-        return SQLiteSession(session_id, self.session_db)
 
     def _get_or_create_conversation(
         self, 
@@ -278,6 +290,26 @@ Keep responses concise but helpful.""",
         db_session.commit()
         db_session.refresh(conversation)
         return conversation
+
+    def _get_conversation_history(
+        self, 
+        db_session: Session, 
+        conversation_id: int,
+        limit: int = 10
+    ) -> List[dict]:
+        """Get recent messages from conversation history."""
+        messages = db_session.exec(
+            select(Message)
+            .where(Message.conversation_id == conversation_id)
+            .order_by(Message.created_at.desc())
+            .limit(limit)
+        ).all()
+        
+        # Reverse to get chronological order
+        return list(reversed([
+            {"role": msg.role, "content": msg.content}
+            for msg in messages
+        ]))
 
     def _save_message(
         self,
@@ -310,7 +342,6 @@ Keep responses concise but helpful.""",
     ) -> dict:
         """
         Process a chat message asynchronously and return AI response.
-        Uses SQLiteSession for automatic conversation history management.
         
         Args:
             user_id: The user's ID
@@ -329,34 +360,40 @@ Keep responses concise but helpful.""",
                 db_session, user_uuid, conversation_id
             )
             
+            # Get conversation history for context
+            history = self._get_conversation_history(db_session, conversation.id)
+            
             # Save user message to our database
             self._save_message(
                 db_session, conversation.id, user_uuid, "user", message
             )
             
-            # Get SQLiteSession for agent memory
-            agent_session = self._get_session(user_id, conversation.id)
+            # Build input with history context
+            if history:
+                context_str = "\n".join([
+                    f"{m['role'].capitalize()}: {m['content']}" 
+                    for m in history[-6:]  # Last 6 messages for context
+                ])
+                full_input = f"Previous conversation:\n{context_str}\n\nUser: {message}"
+            else:
+                full_input = message
             
-            # Run the agent with user context and session
+            # Run the agent with user context
             context = {"user_id": user_id}
             result = await Runner.run(
                 self.agent, 
-                input=message,
-                context=context,
-                session=agent_session
+                input=full_input,
+                context=context
             )
             
             # Extract tool calls from the result
             if hasattr(result, 'new_items'):
                 for item in result.new_items:
-                    if hasattr(item, 'type') and item.type == 'function_call_output':
-                        # This is a tool result
-                        pass
-                    elif hasattr(item, 'raw_item'):
+                    if hasattr(item, 'raw_item'):
                         raw = item.raw_item
                         if hasattr(raw, 'type') and raw.type == 'function_call':
                             tool_calls_made.append({
-                                "tool_name": raw.name if hasattr(raw, 'name') else "unknown",
+                                "tool_name": getattr(raw, 'name', 'unknown'),
                                 "arguments": json.loads(raw.arguments) if hasattr(raw, 'arguments') and raw.arguments else {},
                                 "result": {}
                             })
@@ -390,9 +427,7 @@ Keep responses concise but helpful.""",
         message: str,
         conversation_id: Optional[int] = None
     ) -> dict:
-        """
-        Synchronous wrapper for chat_async.
-        """
+        """Synchronous wrapper for chat_async."""
         return asyncio.run(self.chat_async(user_id, message, conversation_id))
 
     def get_conversations(self, user_id: str) -> List[dict]:
@@ -406,7 +441,6 @@ Keep responses concise but helpful.""",
             
             result = []
             for conv in conversations:
-                # Count messages
                 msg_count = len(db_session.exec(
                     select(Message).where(Message.conversation_id == conv.id)
                 ).all())
