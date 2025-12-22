@@ -17,7 +17,7 @@ class User(SQLModel, table=True):
     User model representing authenticated users.
     Managed by Better Auth on the frontend.
     """
-    __tablename__ = "users"
+    __tablename__ = "user"  # Match Better Auth table name
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     email: str = Field(unique=True, index=True, max_length=255)
