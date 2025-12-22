@@ -27,5 +27,4 @@ class Task(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
 
-    # Relationship to user
-    user: Optional["User"] = Relationship(back_populates="tasks")
+    # Relationships removed - no foreign keys

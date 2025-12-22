@@ -25,8 +25,7 @@ class Conversation(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
 
-    # Relationship to messages
-    messages: List["Message"] = Relationship(back_populates="conversation")
+    # Relationships removed - no foreign keys
 
 
 class Message(SQLModel, table=True):
@@ -43,5 +42,4 @@ class Message(SQLModel, table=True):
     tool_calls: Optional[str] = Field(default=None)  # JSON string of tool calls
     created_at: datetime = Field(default_factory=utc_now)
 
-    # Relationship to conversation
-    conversation: Optional[Conversation] = Relationship(back_populates="messages")
+    # Relationships removed - no foreign keys
