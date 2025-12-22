@@ -20,7 +20,7 @@ class Task(SQLModel, table=True):
     __tablename__ = "tasks"
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: UUID = Field(foreign_key="user.id", index=True)
+    user_id: UUID = Field(index=True)  # No foreign key constraint
     title: str = Field(max_length=200)
     description: Optional[str] = Field(default=None)
     completed: bool = Field(default=False)
