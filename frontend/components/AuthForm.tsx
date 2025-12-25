@@ -89,10 +89,9 @@ export default function AuthForm({ mode }: AuthFormProps) {
                 setFieldErrors((prev) => ({ ...prev, name: undefined }));
               }
             }}
-            className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+            className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black placeholder:text-gray-400 ${
               fieldErrors.name ? "border-red-500" : "border-gray-300"
             }`}
-            style={{ color: '#000000' }}
             placeholder="John Doe"
             disabled={loading}
             aria-invalid={!!fieldErrors.name}
@@ -123,10 +122,9 @@ export default function AuthForm({ mode }: AuthFormProps) {
               setFieldErrors((prev) => ({ ...prev, email: undefined }));
             }
           }}
-          className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+          className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black placeholder:text-gray-400 ${
             fieldErrors.email ? "border-red-500" : "border-gray-300"
           }`}
-          style={{ color: '#000000' }}
           placeholder="you@example.com"
           disabled={loading}
           aria-invalid={!!fieldErrors.email}
@@ -156,10 +154,9 @@ export default function AuthForm({ mode }: AuthFormProps) {
               setFieldErrors((prev) => ({ ...prev, password: undefined }));
             }
           }}
-          className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+          className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black placeholder:text-gray-400 ${
             fieldErrors.password ? "border-red-500" : "border-gray-300"
           }`}
-          style={{ color: '#000000' }}
           placeholder="••••••••"
           disabled={loading}
           aria-invalid={!!fieldErrors.password}
