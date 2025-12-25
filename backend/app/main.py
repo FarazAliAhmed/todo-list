@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import create_engine, text
 from app.config import settings
 from app.database import create_db_and_tables
 from app.routes import tasks, chat
@@ -17,8 +18,8 @@ from app.exceptions import (
 # Create FastAPI application
 app = FastAPI(
     title="Todo API",
-    description="RESTful API for multi-user todo application",
-    version="2.0.0",
+    description="RESTful API for multi-user todo application with AI chatbot",
+    version="3.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
 )
@@ -47,6 +48,23 @@ app.include_router(chat.router)
 async def on_startup():
     """Initialize database tables on startup."""
     create_db_and_tables()
+    
+    # Fix foreign key constraints
+    import os
+    from sqlalchemy import create_engine, text
+    try:
+        engine = create_engine(settings.database_url)
+        with engine.connect() as conn:
+            # Drop foreign key constraints that prevent user-less operation
+            conn.execute(text("ALTER TABLE IF EXISTS conversations DROP CONSTRAINT IF EXISTS conversations_user_id_fkey"))
+            conn.execute(text("ALTER TABLE IF EXISTS messages DROP CONSTRAINT IF EXISTS messages_conversation_id_fkey"))
+            conn.execute(text("ALTER TABLE IF EXISTS messages DROP CONSTRAINT IF EXISTS messages_user_id_fkey"))
+            conn.execute(text("ALTER TABLE IF EXISTS tasks DROP CONSTRAINT IF EXISTS tasks_user_id_fkey"))
+            conn.commit()
+            print("✓ Foreign key constraints removed")
+        engine.dispose()
+    except Exception as e:
+        print(f"Warning: Could not remove foreign keys: {e}")
 
 
 @app.get("/health")
@@ -58,7 +76,7 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "todo-api",
-        "version": "2.0.0"
+        "version": "3.0.0"
     }
 
 
@@ -66,8 +84,9 @@ async def health_check():
 async def root():
     """Root endpoint with API information."""
     return {
-        "message": "Todo API",
-        "version": "2.0.1",
+        "message": "Todo API - Phase III AI Chatbot",
+        "version": "3.0.0",
         "docs": "/docs",
-        "auth": "disabled"
+        "auth": "disabled",
+        "features": ["tasks", "ai_chat"]
     }

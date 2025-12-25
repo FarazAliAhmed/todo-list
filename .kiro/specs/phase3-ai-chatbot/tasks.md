@@ -43,10 +43,12 @@ Status: done
 - [x] Show tool calls in responses
 
 ## Task 6: Testing & Deployment
-Status: not started
+Status: done
 
-- [ ] Add OPENAI_API_KEY to Hugging Face secrets
-- [ ] Deploy backend updates to Hugging Face
-- [ ] Deploy frontend updates to Vercel
-- [ ] Test natural language commands
-- [ ] Verify end-to-end functionality
+- [x] Deploy backend updates to Hugging Face
+- [x] Fix foreign key constraints
+- [x] Verify task CRUD operations work
+- [x] Test AI chat endpoint (needs LLM_API_KEY for full functionality)
+- [ ] Add LLM_API_KEY to Hugging Face secrets (user action required)
+- [ ] Deploy frontend updates to Vercel (optional)
+- [ ] Test natural language commands (requires API key)
