@@ -12,71 +12,55 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Fix input text visibility - Force dark text */
+/* FORCE INPUT TEXT TO BE BLACK - HIGHEST PRIORITY */
+@layer utilities {
+  .input-text-fix {
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+    caret-color: #000000 !important;
+    background-color: #ffffff !important;
+  }
+}
+
+/* Override ALL input styles */
+input,
 input[type="text"],
 input[type="email"],
 input[type="password"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+input[type="number"],
 textarea,
 select {
-  color: #000000 !important; /* Pure black */
-  -webkit-text-fill-color: #000000 !important; /* Safari fix */
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+  caret-color: #000000 !important;
+  background-color: #ffffff !important;
+  opacity: 1 !important;
 }
 
 input::placeholder,
 textarea::placeholder {
-  color: #6b7280 !important; /* gray-500 - visible placeholder */
+  color: #6b7280 !important;
+  -webkit-text-fill-color: #6b7280 !important;
   opacity: 1 !important;
 }
 
-/* Ensure autofill doesn't hide text */
+/* Autofill fix */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
-textarea:-webkit-autofill,
-textarea:-webkit-autofill:hover,
-textarea:-webkit-autofill:focus {
+input:-webkit-autofill:active,
+textarea:-webkit-autofill {
   -webkit-text-fill-color: #000000 !important;
-  -webkit-box-shadow: 0 0 0px 1000px white inset !important;
-  transition: background-color 5000s ease-in-out 0s;
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  input[type="text"],
-  input[type="email"],
-  input[type="password"],
-  textarea,
-  select {
-    color: #ffffff !important; /* Pure white */
-    -webkit-text-fill-color: #ffffff !important;
-  }
-  
-  input::placeholder,
-  textarea::placeholder {
-    color: #9ca3af !important; /* gray-400 */
-    opacity: 1 !important;
-  }
-  
-  input:-webkit-autofill,
-  input:-webkit-autofill:hover,
-  input:-webkit-autofill:focus,
-  textarea:-webkit-autofill,
-  textarea:-webkit-autofill:hover,
-  textarea:-webkit-autofill:focus {
-    -webkit-text-fill-color: #ffffff !important;
-    -webkit-box-shadow: 0 0 0px 1000px #1f2937 inset !important;
-  }
+  -webkit-box-shadow: 0 0 0px 1000px #ffffff inset !important;
+  box-shadow: 0 0 0px 1000px #ffffff inset !important;
+  caret-color: #000000 !important;
 }

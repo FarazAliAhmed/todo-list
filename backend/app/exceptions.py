@@ -99,13 +99,21 @@ async def sqlalchemy_exception_handler(
     - Logs error details for debugging
     - Returns generic message to user (don't expose internal details)
     """
-    logger.error(f"Database error on {request.url.path}: {str(exc)}", exc_info=True)
+    error_detail = str(exc)
+    logger.error(f"Database error on {request.url.path}: {error_detail}", exc_info=True)
+
+    # In development, show more details
+    import os
+    if os.environ.get("DEBUG", "false").lower() == "true":
+        detail = f"Database error: {error_detail}"
+    else:
+        detail = "An internal server error occurred. Please try again later."
 
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content=create_error_response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An internal server error occurred. Please try again later."
+            detail=detail
         )
     )
 
@@ -123,15 +131,23 @@ async def generic_exception_handler(
     - Logs error details for debugging
     - Returns generic message to user
     """
+    error_detail = str(exc)
     logger.error(
-        f"Unhandled exception on {request.url.path}: {str(exc)}",
+        f"Unhandled exception on {request.url.path}: {error_detail}",
         exc_info=True
     )
+
+    # In development, show more details
+    import os
+    if os.environ.get("DEBUG", "false").lower() == "true":
+        detail = f"Error: {error_detail}"
+    else:
+        detail = "An unexpected error occurred. Please try again later."
 
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content=create_error_response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred. Please try again later."
+            detail=detail
         )
     )

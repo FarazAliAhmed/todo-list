@@ -112,16 +112,11 @@ export default function TaskForm({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           disabled={isSubmitting}
-          style={{
-            color: '#000000',
-            backgroundColor: '#ffffff',
-            WebkitTextFillColor: '#000000',
-            opacity: 1
-          }}
           className={`
             w-full px-3 py-2 border rounded-md shadow-sm
             focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
             disabled:bg-gray-100 disabled:cursor-not-allowed
+            !text-black !bg-white
             ${errors.title ? "border-red-500" : "border-gray-300"}
           `}
           placeholder="Enter task title"
@@ -153,17 +148,12 @@ export default function TaskForm({
           onChange={(e) => setDescription(e.target.value)}
           disabled={isSubmitting}
           rows={3}
-          style={{
-            color: '#000000',
-            backgroundColor: '#ffffff',
-            WebkitTextFillColor: '#000000',
-            opacity: 1
-          }}
           className={`
             w-full px-3 py-2 border rounded-md shadow-sm
             focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
             disabled:bg-gray-100 disabled:cursor-not-allowed
             resize-none
+            !text-black !bg-white
             ${errors.description ? "border-red-500" : "border-gray-300"}
           `}
           placeholder="Enter task description (optional)"
