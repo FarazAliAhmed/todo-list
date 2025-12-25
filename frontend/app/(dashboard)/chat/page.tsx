@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import Header from "@/components/Header";
 import { api } from "@/lib/api";
 
 interface Message {
@@ -89,7 +88,6 @@ export default function ChatPage() {
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-gray-50 flex flex-col">
-        <Header />
         <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full p-4">
           {/* Chat header */}
           <div className="bg-white rounded-t-lg shadow-sm border border-b-0 p-4 flex justify-between items-center">
