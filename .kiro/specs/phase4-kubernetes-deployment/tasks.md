@@ -177,12 +177,12 @@ curl http://localhost:8000/api/tasks
 **Requirement**: Submission requirements
 
 ### Subtasks
-- [ ] 6.1 Create `KUBERNETES_SETUP.md` with:
+- [x] 6.1 Create `KUBERNETES_SETUP.md` with:
   - Codespaces setup instructions
   - Build and deploy commands
   - Troubleshooting tips
-- [ ] 6.2 Update `README.md` with Phase 4 section
-- [ ] 6.3 Commit all changes to GitHub
+- [x] 6.2 Update `README.md` with Phase 4 section
+- [x] 6.3 Commit all changes to GitHub
 
 ### Useful Commands Reference
 ```bash
@@ -206,8 +206,8 @@ minikube delete
 ```
 
 ### Acceptance Criteria
-- [ ] Documentation complete
-- [ ] All code committed to GitHub
+- [x] Documentation complete
+- [x] All code committed to GitHub
 
 ---
 
