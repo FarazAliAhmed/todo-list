@@ -166,10 +166,10 @@ curl http://localhost:8000/api/tasks
 ```
 
 ### Acceptance Criteria
-- [ ] All pods in Running state
-- [ ] Health checks passing
-- [ ] App accessible via port-forward
-- [ ] CRUD operations work
+- [x] All pods in Running state
+- [x] Health checks passing
+- [x] App accessible via port-forward
+- [x] CRUD operations work
 
 ---
 

@@ -1,27 +1,51 @@
-# Evolution of Todo - Phase II: Full-Stack Web Application
+# Evolution of Todo - Multi-Phase Development
 
-A modern, multi-user todo application built with Next.js, FastAPI, and PostgreSQL. This project demonstrates spec-driven development with secure authentication, RESTful API design, and user data isolation.
+A modern, multi-user todo application demonstrating spec-driven development from console app to cloud-native Kubernetes deployment.
+
+## 🎯 Project Phases
+
+- ✅ **Phase 1:** Console Application (Python CLI)
+- ✅ **Phase 2:** Full-Stack Web App (Next.js + FastAPI)
+- ✅ **Phase 3:** AI Chatbot Integration (OpenAI + MCP)
+- ✅ **Phase 4:** Kubernetes Deployment (Minikube + Helm)
+- 🔄 **Phase 5:** Advanced Cloud Deployment (DigitalOcean + Kafka + Dapr)
+
+---
 
 ## 🚀 Quick Start
 
-```bash
-# Clone the repository
-git clone <your-repo-url>
-cd todo-app-monorepo
+### Phase 4: Kubernetes Deployment (Current)
 
-# Install all dependencies
+```bash
+# Setup Minikube in GitHub Codespaces
+./k8s/setup-codespace.sh
+
+# Build Docker images
+eval $(minikube docker-env)
+docker build -t todo-backend:latest ./backend
+docker build -t todo-frontend:latest ./frontend
+
+# Deploy with Helm
+kubectl create namespace todo-app
+helm install todo-app ./helm/todo-app -n todo-app -f helm-values.yaml
+
+# Access the app
+kubectl port-forward svc/todo-app-frontend 3000:3000 -n todo-app
+```
+
+📖 **Full Kubernetes guide:** [KUBERNETES_SETUP.md](./KUBERNETES_SETUP.md)
+
+### Phase 2-3: Local Development
+
+```bash
+# Install dependencies
 npm run install:all
 
-# Set up environment variables (see Configuration section)
+# Set up environment variables
 cp frontend/.env.local.example frontend/.env.local
 cp backend/.env.example backend/.env
 
-# Run database migrations
-cd backend
-python -m app.migrations.create_tables
-
 # Start development servers
-cd ..
 npm run dev
 ```
 
@@ -35,6 +59,7 @@ todo-app-monorepo/
 │   ├── app/              # App Router pages and layouts
 │   ├── components/       # React components
 │   ├── lib/              # Utilities, API client, auth config
+│   ├── Dockerfile        # Frontend container image
 │   └── .env.local        # Frontend environment variables
 ├── backend/              # FastAPI server
 │   ├── app/              # Application code
@@ -43,11 +68,22 @@ todo-app-monorepo/
 │   │   ├── schemas/      # Pydantic validation schemas
 │   │   ├── middleware/   # JWT authentication middleware
 │   │   └── migrations/   # Database migration scripts
+│   ├── Dockerfile        # Backend container image
 │   └── .env              # Backend environment variables
+├── helm/                 # Kubernetes Helm charts
+│   └── todo-app/
+│       ├── Chart.yaml
+│       ├── values.yaml
+│       └── templates/    # K8s resource manifests
+├── k8s/                  # Kubernetes setup scripts
 ├── src/                  # Phase I console application (legacy)
 ├── .kiro/                # Kiro specs and configuration
 │   └── specs/
-│       └── phase2-fullstack-web/
+│       ├── phase1-console-app/
+│       ├── phase2-fullstack-web/
+│       ├── phase3-ai-chatbot/
+│       └── phase4-kubernetes-deployment/
+└── KUBERNETES_SETUP.md   # Phase 4 deployment guide
 │           ├── requirements.md
 │           ├── design.md
 │           └── tasks.md
