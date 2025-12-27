@@ -1,0 +1,13 @@
+apiVersion: v2
+name: todo-app
+description: Todo Chatbot Application with AI - Phase 4 Kubernetes Deployment
+type: application
+version: 1.0.0
+appVersion: "3.0.0"
+keywords:
+  - todo
+  - chatbot
+  - ai
+  - kubernetes
+maintainers:
+  - name: Faraz Ali Ahmed
